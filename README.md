@@ -1,4 +1,4 @@
-# net.straylightlabs.quickturing.QuickTuring
+# QuickTuring
 A fast Java implementation of Qualcomm's Turing stream cipher.
 
 This code is based on Joseph Dudar's initial Java port, available at
