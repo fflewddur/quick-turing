@@ -82,18 +82,21 @@ public class QuickTuring {
     public static final int SHIFT_REGISTER_LENGTH = 17; // words
     public static final int ROUND_OUTPUT_LENGTH = 20; // bytes
 
-    private static int getByte(int word, int i) {
-        return ((word >> (24 - 8 * i)) & 0xff);
-    }
-
     /**
-     * Word is defined as 4 bytes.
+     * Sets the key on the cipher instance.
      */
-    private static void word2ByteArray(int word, byte[] b, int offset) {
-        b[offset] = (byte) (word >> 24);
-        b[offset + 1] = (byte) (word >> 16);
-        b[offset + 2] = (byte) (word >> 8);
-        b[offset + 3] = (byte) word;
+    public void setTuringKey(byte[] key, int length) {
+        if ((length & 0x03) != 0 || length > MAX_KEY_LENGTH) {
+            throw new IllegalArgumentException("Invalid key length " + length);
+        }
+
+        keyLength = 0;
+        for (int i = 0; i < length; i += 4) {
+            mixedKey[keyLength++] = fixedS(byteArray2Word(key, i));
+        }
+        mixWords(mixedKey, keyLength);
+
+        buildSBoxTables();
     }
 
     /**
@@ -101,44 +104,6 @@ public class QuickTuring {
      */
     private static int byteArray2Word(byte[] b, int offset) {
         return ((b[offset] & 0xff) << 24) | ((b[offset + 1] & 0xff) << 16) | ((b[offset + 2] & 0xff) << 8) | (b[offset + 3] & 0xff);
-    }
-
-    /**
-     * Convert a WORD (big endian) to a byte[].
-     */
-    private static int leftRotateWord(int word, int bits) {
-        return (word << bits) | (word >>> (32 - bits));
-    }
-
-    /**
-     * Step the LSFR.
-     */
-    private void step(int z) {
-        shiftRegister[offset(z, 0)] = shiftRegister[offset(z, 15)] ^ shiftRegister[offset(z, 4)] ^
-                (shiftRegister[offset(z, 0)] << 8) ^ theMultab[(shiftRegister[offset(z, 0)] >>> 24) & 0xFF];
-    }
-
-    private static int offset(int zero, int i) {
-        return (zero + i) % SHIFT_REGISTER_LENGTH;
-    }
-
-    /**
-     * Sets the key on the cipher instance.
-     */
-    public void setTuringKey(byte[] key, int length) {
-        int i;
-
-        if ((length & 0x03) != 0 || length > MAX_KEY_LENGTH) {
-            throw new IllegalArgumentException("Invalid key length " + length);
-        }
-
-        keyLength = 0;
-        for (i = 0; i < length; i += 4) {
-            mixedKey[keyLength++] = fixedS(byteArray2Word(key, i));
-        }
-        mixWords(mixedKey, keyLength);
-
-        buildSBoxTables();
     }
 
     private void buildSBoxTables() {
@@ -180,6 +145,20 @@ public class QuickTuring {
             }
             s3[j] = (w & 0xFFFFFF00) | k;
         }
+    }
+
+    /**
+     * Return the byte at offset @i of @word.
+     */
+    private static int getByte(int word, int i) {
+        return ((word >> (24 - 8 * i)) & 0xff);
+    }
+
+    /**
+     * Convert a WORD (big endian) to a byte[].
+     */
+    private static int leftRotateWord(int word, int bits) {
+        return (word << bits) | (word >>> (32 - bits));
     }
 
     /**
@@ -363,6 +342,31 @@ public class QuickTuring {
         step(z + 4);
 
         return ROUND_OUTPUT_LENGTH;
+    }
+
+    /**
+     * Step the LSFR.
+     */
+    private void step(int z) {
+        shiftRegister[offset(z, 0)] = shiftRegister[offset(z, 15)] ^ shiftRegister[offset(z, 4)] ^
+                (shiftRegister[offset(z, 0)] << 8) ^ theMultab[(shiftRegister[offset(z, 0)] >>> 24) & 0xFF];
+    }
+
+    /**
+     * Calculate the offset for the current position of the shift register.
+     */
+    private static int offset(int zero, int i) {
+        return (zero + i) % SHIFT_REGISTER_LENGTH;
+    }
+
+    /**
+     * Word is defined as 4 bytes.
+     */
+    private static void word2ByteArray(int word, byte[] b, int offset) {
+        b[offset] = (byte) (word >> 24);
+        b[offset + 1] = (byte) (word >> 16);
+        b[offset + 2] = (byte) (word >> 8);
+        b[offset + 3] = (byte) word;
     }
 
     /**
